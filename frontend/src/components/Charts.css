@@ -1,0 +1,71 @@
+﻿.charts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.chart-box {
+  background: #0f0f0f;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 12px;
+  height: 260px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.chart-box.large {
+  height: 360px;
+}
+
+.no-data {
+  text-align: center;
+  color: #bbb;
+  padding: 24px;
+  background: #0f0f0f;
+  border: 1px dashed #333;
+  border-radius: 12px;
+}
+
+@media (max-width: 900px) {
+  .chart-row {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-box.large {
+    height: 320px;
+  }
+}
+
+.matplotlib-charts {
+  display: grid;
+  gap: 14px;
+}
+
+.matplotlib-chart-box {
+  background: #0f0f0f;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.matplotlib-chart-title {
+  color: #d8e2ea;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.matplotlib-chart-image {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid #2a2a2a;
+  background: #111;
+}

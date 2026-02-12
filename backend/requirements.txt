@@ -1,0 +1,13 @@
+flask
+flask-cors
+python-dotenv
+yfinance
+pandas
+numpy
+requests
+matplotlib
+seaborn
+scikit-learn
+joblib
+transformers
+torch

@@ -1,0 +1,111 @@
+﻿.stock-search {
+  background: #0f0f0f;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #121212;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.search-icon {
+  color: #8f8f8f;
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #eee;
+}
+
+.search-loading {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #2a2a2a;
+  border-top-color: #00ff00;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.search-results {
+  margin-top: 8px;
+  border: 1px solid #222;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.search-result-item {
+  padding: 10px;
+  background: #101010;
+  border-bottom: 1px solid #1c1c1c;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.search-result-item:hover {
+  background: #151515;
+}
+
+.result-symbol {
+  font-weight: 700;
+  color: #d7f5e8;
+}
+
+.result-name,
+.result-exchange {
+  color: #bdbdbd;
+  font-size: 12px;
+}
+
+.popular-stocks {
+  margin-top: 14px;
+}
+
+.popular-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #dcdcdc;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.popular-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.popular-stock-btn {
+  background: #121212;
+  border: 1px solid #2a2a2a;
+  color: #ddd;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.popular-stock-btn:hover {
+  background: #151515;
+  border-color: #3a3a3a;
+}
+
+.search-empty {
+  padding: 10px;
+  color: #bdbdbd;
+  font-size: 13px;
+  background: #101010;
+}

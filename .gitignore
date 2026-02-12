@@ -1,0 +1,9 @@
+venv/
+env/
+backend/venv/
+__pycache__/
+*.pyc
+.env
+*.log
+node_modules/
+.ipynb_checkpoints/

@@ -1,0 +1,331 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  color: #ffffff;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app {
+  min-height: 100vh;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.slide-in {
+  animation: slideIn 0.5s ease-out;
+}
+
+/* Selected Stock Display */
+.selected-stock-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+.selected-stock-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.selected-label {
+  font-weight: 600;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.selected-stock-name {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.cancel-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Search Box */
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 14px 20px 14px 50px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  font-size: 15px;
+  transition: all 0.3s ease;
+  background: #fff;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.search-icon {
+  position: absolute;
+  left: 18px;
+  color: #667eea;
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 15px;
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.clear-search-btn:hover {
+  color: #ff4444;
+  background: rgba(255, 68, 68, 0.1);
+}
+
+/* Search Results */
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 5px;
+}
+
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  border-bottom: 1px solid #eee;
+  font-weight: 600;
+  color: #444;
+  background: #f9f9f9;
+  border-radius: 10px 10px 0 0;
+}
+
+.close-results-btn {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.close-results-btn:hover {
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.search-result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  border-bottom: 1px solid #f5f5f5;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.search-result-item:hover {
+  background: #f8f9ff;
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.result-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.result-symbol {
+  font-weight: 700;
+  color: #333;
+  font-size: 15px;
+}
+
+.result-name {
+  font-size: 13px;
+  color: #666;
+}
+
+.result-exchange {
+  font-size: 12px;
+  color: #888;
+  background: #f0f0f0;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* Popular Stocks */
+.popular-stocks {
+  margin-top: 25px;
+}
+
+.popular-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+  color: #444;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.popular-header svg {
+  color: #667eea;
+}
+
+.popular-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.popular-stock-btn {
+  padding: 10px 16px;
+  background: #f0f4ff;
+  border: 1px solid #d0d9ff;
+  color: #667eea;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.popular-stock-btn:hover {
+  background: #667eea;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+/* Loading Animation */
+.search-loading {
+  position: absolute;
+  right: 45px;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
