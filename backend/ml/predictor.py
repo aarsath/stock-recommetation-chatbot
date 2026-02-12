@@ -21,6 +21,31 @@ class StockPredictor:
         self.scaler = StandardScaler()
         self.feature_columns = []
         self.is_trained = False
+
+    def _sanitize_feature_frame(self, X, y=None):
+        """Remove non-finite values that break sklearn scaling/prediction."""
+        if X is None or len(X) == 0:
+            return (None, None) if y is not None else None
+
+        X_clean = X.copy()
+        X_clean = X_clean.replace([np.inf, -np.inf], np.nan)
+        X_clean = X_clean.apply(pd.to_numeric, errors='coerce')
+        X_clean = X_clean.clip(lower=-1e12, upper=1e12)
+
+        if y is None:
+            X_clean = X_clean.dropna()
+            return X_clean if len(X_clean) else None
+
+        y_clean = pd.to_numeric(y, errors='coerce')
+        valid_mask = X_clean.notna().all(axis=1) & y_clean.notna() & np.isfinite(y_clean)
+
+        X_clean = X_clean.loc[valid_mask]
+        y_clean = y_clean.loc[valid_mask]
+
+        if len(X_clean) == 0:
+            return None, None
+
+        return X_clean, y_clean
     
     def prepare_features(self, df):
         """Prepare features for ML model"""
@@ -213,7 +238,7 @@ class StockPredictor:
             'current_price': round(actual_price, 2),
             'predicted_price': round(predicted_price, 2),
             'change': round(predicted_price - actual_price, 2),
-            'change_percent': round(((predicted_price - actual_price) / actual_price) * 100, 2),
+            'change_percent': round((((predicted_price - actual_price) / actual_price) * 100) if actual_price else 0, 2),
             'confidence': confidence
         }
     
@@ -280,3 +305,4 @@ class StockPredictor:
         self.is_trained = True
         
         return True
+

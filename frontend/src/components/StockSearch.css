@@ -1,111 +1,265 @@
-﻿.stock-search {
-  background: #0f0f0f;
-  border: 1px solid #222;
-  border-radius: 12px;
-  padding: 12px;
+.stock-search {
+  --panel-bg: linear-gradient(180deg, #0f121d 0%, #0b0f18 100%);
+  --panel-border: #1f2a3c;
+  --soft-border: #2a3750;
+  --text-main: #e8eeff;
+  --text-muted: #9fb0cf;
+  --accent: #6e9dff;
+  --accent-2: #84b5ff;
+  --chip-bg: #121b2c;
+
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.35);
+  position: relative;
 }
 
-.search-box {
+.stock-search .selected-stock-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, rgba(105, 123, 245, 0.95), rgba(112, 80, 177, 0.95));
+  border: 1px solid rgba(157, 175, 255, 0.55);
+  color: #f5f8ff;
+  padding: 12px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.stock-search .selected-stock-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.stock-search .selected-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.95;
+}
+
+.stock-search .selected-stock-name {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.stock-search .cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  border-radius: 20px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.stock-search .cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.stock-search .search-box {
   position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #121212;
-  border: 1px solid #2a2a2a;
-  border-radius: 8px;
-  padding: 8px 10px;
+  background: #f6f8ff;
+  border: 1px solid #d6ddf3;
+  border-radius: 12px;
+  padding: 10px 12px;
 }
 
-.search-icon {
-  color: #8f8f8f;
+.stock-search .search-icon {
+  color: #6f87c8;
 }
 
-.search-input {
+.stock-search .search-input {
   flex: 1;
   background: transparent;
   border: none;
   outline: none;
-  color: #eee;
+  color: #243555;
+  font-size: 14px;
 }
 
-.search-loading {
+.stock-search .search-input::placeholder {
+  color: #7083a8;
+}
+
+.stock-search .clear-search-btn {
+  border: none;
+  background: transparent;
+  color: #7a8eb5;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.stock-search .clear-search-btn:hover {
+  background: rgba(78, 102, 162, 0.14);
+}
+
+.stock-search .search-loading {
   width: 14px;
   height: 14px;
-  border: 2px solid #2a2a2a;
-  border-top-color: #00ff00;
+  border: 2px solid #d2daef;
+  border-top-color: #4b83ff;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
-.search-results {
+.stock-search .search-results {
   margin-top: 8px;
-  border: 1px solid #222;
-  border-radius: 8px;
+  border: 1px solid var(--soft-border);
+  background: #0f1626;
+  border-radius: 10px;
   overflow: hidden;
 }
 
-.search-result-item {
-  padding: 10px;
-  background: #101010;
-  border-bottom: 1px solid #1c1c1c;
+.stock-search .results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #141f34;
+  border-bottom: 1px solid #243451;
+  color: #dce8ff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.stock-search .close-results-btn {
+  border: none;
+  background: transparent;
+  color: #a9badb;
+  cursor: pointer;
+}
+
+.stock-search .search-result-item {
+  padding: 10px 12px;
+  background: #10192b;
+  border-bottom: 1px solid #1b2941;
   cursor: pointer;
   display: grid;
-  grid-template-columns: 80px 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: 8px;
   align-items: center;
 }
 
-.search-result-item:hover {
-  background: #151515;
+.stock-search .search-result-item:hover {
+  background: #17243b;
 }
 
-.result-symbol {
-  font-weight: 700;
-  color: #d7f5e8;
+.stock-search .result-main {
+  display: grid;
+  gap: 2px;
 }
 
-.result-name,
-.result-exchange {
-  color: #bdbdbd;
+.stock-search .result-symbol {
+  font-weight: 800;
+  color: #d8e7ff;
+  font-size: 13px;
+}
+
+.stock-search .result-name {
+  color: #9fb0cf;
   font-size: 12px;
 }
 
-.popular-stocks {
+.stock-search .result-exchange {
+  color: #b8c9eb;
+  font-size: 11px;
+  border: 1px solid #2d4062;
+  background: #18263f;
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+.stock-search .search-empty {
+  padding: 10px 12px;
+  color: #aec0df;
+  font-size: 13px;
+  background: #10192b;
+}
+
+.stock-search .popular-stocks {
   margin-top: 14px;
 }
 
-.popular-header {
+.stock-search .popular-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #dcdcdc;
-  font-weight: 600;
-  margin-bottom: 8px;
+  color: #a6b8db;
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 10px;
 }
 
-.popular-list {
+.stock-search .popular-header svg {
+  color: #6a9aff;
+  font-size: 18px;
+}
+
+.stock-search .popular-list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.popular-stock-btn {
-  background: #121212;
-  border: 1px solid #2a2a2a;
-  color: #ddd;
-  padding: 6px 10px;
-  border-radius: 999px;
+.stock-search .popular-stock-btn {
+  background: linear-gradient(180deg, #eef3ff 0%, #e4ecff 100%);
+  border: 1px solid #cad8ff;
+  color: #4f71d2;
+  padding: 7px 12px;
+  border-radius: 9px;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
-.popular-stock-btn:hover {
-  background: #151515;
-  border-color: #3a3a3a;
+.stock-search .popular-stock-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(65, 107, 205, 0.25);
+  background: linear-gradient(180deg, #ffffff 0%, #edf2ff 100%);
 }
 
-.search-empty {
-  padding: 10px;
-  color: #bdbdbd;
-  font-size: 13px;
-  background: #101010;
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 700px) {
+  .stock-search {
+    padding: 12px;
+  }
+
+  .stock-search .selected-stock-display {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stock-search .cancel-btn {
+    align-self: flex-end;
+  }
 }

@@ -1,4 +1,4 @@
-﻿.dashboard {
+.dashboard {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -233,6 +233,104 @@
   margin-top: 8px;
   display: grid;
   gap: 8px;
+}
+
+.portfolio-two-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 12px;
+}
+
+.portfolio-middle-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.portfolio-select-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  background: #121212;
+  padding: 10px 12px;
+}
+
+.portfolio-select-row.error {
+  border-color: #5b2f2f;
+}
+
+.portfolio-select-main {
+  display: grid;
+  gap: 4px;
+}
+
+.portfolio-select-symbol {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e9f2ff;
+}
+
+.portfolio-select-reco {
+  font-size: 12px;
+  color: #b9c3d5;
+}
+
+.portfolio-arrow-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid #2f5b43;
+  background: #112018;
+  color: #d9f6e6;
+  cursor: pointer;
+}
+
+.portfolio-arrow-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.portfolio-right-panel {
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  background: #101010;
+  padding: 12px;
+}
+
+.portfolio-detail-card {
+  display: grid;
+  gap: 10px;
+}
+
+.portfolio-detail-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #d9f6e6;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.portfolio-detail-item {
+  display: grid;
+  gap: 4px;
+}
+
+.portfolio-detail-item span {
+  font-size: 12px;
+  color: #9aa4ad;
+}
+
+.portfolio-detail-item strong {
+  font-size: 14px;
+  color: #f2f2f2;
+}
+
+.portfolio-detail-empty {
+  color: #bdbdbd;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .portfolio-row {
@@ -796,4 +894,58 @@
 
 .planner-open-btn {
   margin-top: 8px;
+}
+
+
+
+.portfolio-prediction-block {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid #2a2a2a;
+  display: grid;
+  gap: 8px;
+}
+
+.portfolio-prediction-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #9fb7a9;
+}
+
+.portfolio-prediction-loading,
+.portfolio-prediction-error {
+  font-size: 12px;
+}
+
+.portfolio-prediction-error {
+  color: #ffdede;
+}
+
+.portfolio-prediction-list {
+  display: grid;
+  gap: 6px;
+}
+
+.portfolio-prediction-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #252525;
+  border-radius: 6px;
+  background: #141414;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.signal-buy {
+  color: #7ce6a9;
+}
+
+.signal-sell {
+  color: #ff9e9e;
+}
+
+.signal-hold {
+  color: #f2d58a;
 }

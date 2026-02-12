@@ -1,12 +1,12 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   getLivePrice,
-  getHistoricalData,
   predictStock,
   getRecommendation,
   getAnalysis,
   getPortfolioRecommendations,
   getPopularStocks,
+  getPredictionIndicator,
 } from '../services/api';
 import Charts from './Charts';
 import ChatBot from './ChatBot';
@@ -20,7 +20,6 @@ import './Dashboard.css';
 const Dashboard = () => {
   const [selectedSymbol, setSelectedSymbol] = useState(null);
   const [liveData, setLiveData] = useState(null);
-  const [historicalData, setHistoricalData] = useState(null);
   const [prediction, setPrediction] = useState(null);
   const [recommendation, setRecommendation] = useState(null);
   const [aiAnalysis, setAiAnalysis] = useState(null);
@@ -34,15 +33,13 @@ const Dashboard = () => {
   const [portfolioData, setPortfolioData] = useState(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [portfolioError, setPortfolioError] = useState(null);
+  const [selectedStock, setSelectedStock] = useState(null);
+  const [rightPanelData, setRightPanelData] = useState(null);
+  const [predictionIndicatorLoading, setPredictionIndicatorLoading] = useState(false);
+  const [predictionIndicatorError, setPredictionIndicatorError] = useState(null);
   const [popularLoading, setPopularLoading] = useState(false);
   const [plannerStep, setPlannerStep] = useState('name');
   const [plannerInput, setPlannerInput] = useState('');
-  const [plannerProfile, setPlannerProfile] = useState({
-    name: '',
-    goal: '',
-    horizon: '',
-    risk: '',
-  });
   const [plannerMessages, setPlannerMessages] = useState([
     {
       role: 'assistant',
@@ -50,6 +47,7 @@ const Dashboard = () => {
     },
   ]);
   const plannerEndRef = useRef(null);
+  const loadRequestRef = useRef(0);
 
   useEffect(() => {
     if (selectedSymbol) {
@@ -58,44 +56,76 @@ const Dashboard = () => {
   }, [selectedSymbol]);
 
   const loadStockData = async (symbol) => {
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
+
     setLoading(true);
     setError(null);
 
     try {
-      const [liveRes, historicalRes, predictionRes, recommendationRes, analysisRes] =
-        await Promise.allSettled([
-          getLivePrice(symbol),
-          getHistoricalData(symbol, 365),
-          predictStock(symbol, 30, false),
-          getRecommendation(symbol),
-          getAnalysis(symbol),
-        ]);
+      const [liveRes, recommendationRes] = await Promise.allSettled([
+        getLivePrice(symbol),
+        getRecommendation(symbol),
+      ]);
+
+      if (requestId !== loadRequestRef.current) return;
 
       if (liveRes.status === 'fulfilled') {
         setLiveData(liveRes.value.data);
-      }
-
-      if (historicalRes.status === 'fulfilled') {
-        setHistoricalData(historicalRes.value.data);
-      }
-
-      if (predictionRes.status === 'fulfilled') {
-        setPrediction(predictionRes.value.predictions);
       }
 
       if (recommendationRes.status === 'fulfilled') {
         setRecommendation(recommendationRes.value.recommendation);
       }
 
+      if (liveRes.status !== 'fulfilled' && recommendationRes.status !== 'fulfilled') {
+        setError('Failed to load stock data. Please try again.');
+      }
+    } catch (err) {
+      if (requestId !== loadRequestRef.current) return;
+      console.error('Fast load error:', err);
+      setError('Failed to load stock data. Please try again.');
+    } finally {
+      if (requestId === loadRequestRef.current) {
+        setLoading(false);
+      }
+    }
+
+    Promise.allSettled([
+      predictStock(symbol, 30, false),
+      getPredictionIndicator(symbol, 5, false),
+      getAnalysis(symbol),
+    ]).then(([predictionRes, indicatorRes, analysisRes]) => {
+      if (requestId !== loadRequestRef.current) return;
+
+      const mlPredictions =
+        predictionRes.status === 'fulfilled' && Array.isArray(predictionRes.value?.predictions)
+          ? predictionRes.value.predictions
+          : [];
+
+      if (mlPredictions.length > 0) {
+        setPrediction(mlPredictions);
+      } else if (
+        indicatorRes.status === 'fulfilled' &&
+        indicatorRes.value?.success &&
+        Array.isArray(indicatorRes.value?.future_predictions)
+      ) {
+        const derived = indicatorRes.value.future_predictions.map((item, idx) => ({
+          day: Number(item?.day ?? idx + 1),
+          predicted_price: Number(item?.predicted_price ?? 0),
+        }));
+        setPrediction(derived);
+      } else {
+        setPrediction([]);
+      }
+
       if (analysisRes.status === 'fulfilled') {
         setAiAnalysis(analysisRes.value.ai_analysis);
       }
-    } catch (err) {
-      console.error('Error loading stock data:', err);
-      setError('Failed to load stock data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    }).catch((err) => {
+      if (requestId !== loadRequestRef.current) return;
+      console.error('Background load error:', err);
+    });
   };
 
   const handleRefresh = () => {
@@ -116,8 +146,8 @@ const Dashboard = () => {
     return Number.isFinite(num) ? num : null;
   };
 
-  const formatMoney = (value) => (Number.isFinite(value) ? value.toFixed(2) : '—');
-  const formatNumber = (value) => (Number.isFinite(value) ? value.toLocaleString() : '—');
+  const formatMoney = (value) => (Number.isFinite(value) ? value.toFixed(2) : '--');
+  const formatNumber = (value) => (Number.isFinite(value) ? value.toLocaleString() : '--');
 
   const numericInvestAmount = Number.parseFloat(investAmount);
   const hasBudget = Number.isFinite(numericInvestAmount) && numericInvestAmount > 0;
@@ -166,7 +196,6 @@ const Dashboard = () => {
       }
 
       setUserName(answer);
-      setPlannerProfile((prev) => ({ ...prev, name: answer }));
       setPlannerStep('goal');
       appendPlannerMessage(
         'assistant',
@@ -176,7 +205,6 @@ const Dashboard = () => {
     }
 
     if (plannerStep === 'goal') {
-      setPlannerProfile((prev) => ({ ...prev, goal: answer }));
       setPlannerStep('horizon');
       appendPlannerMessage(
         'assistant',
@@ -192,7 +220,6 @@ const Dashboard = () => {
         return;
       }
 
-      setPlannerProfile((prev) => ({ ...prev, horizon: String(years) }));
       setPlannerStep('risk');
       appendPlannerMessage(
         'assistant',
@@ -216,7 +243,6 @@ const Dashboard = () => {
         return;
       }
 
-      setPlannerProfile((prev) => ({ ...prev, risk: riskValue }));
       setPlannerStep('monthly');
       appendPlannerMessage(
         'assistant',
@@ -284,12 +310,6 @@ const Dashboard = () => {
   const handlePlannerReset = () => {
     setPlannerStep('name');
     setPlannerInput('');
-    setPlannerProfile({
-      name: '',
-      goal: '',
-      horizon: '',
-      risk: '',
-    });
     setUserName('');
     setInvestAmount('');
     setPortfolioSymbols('');
@@ -334,6 +354,9 @@ const Dashboard = () => {
   const handlePortfolioRecommendation = async () => {
     setPortfolioError(null);
     setPortfolioData(null);
+    setSelectedStock(null);
+    setRightPanelData(null);
+    setPredictionIndicatorError(null);
 
     const budgetValue = Number.parseFloat(investAmount);
     if (!Number.isFinite(budgetValue) || budgetValue <= 0) {
@@ -374,6 +397,46 @@ const Dashboard = () => {
     if (!symbol) return;
     setSelectedSymbol(symbol);
     setActiveTab(tab);
+  };
+
+  const handlePortfolioDetailOpen = async (item) => {
+    if (!item || item.error) return;
+
+    const live = item.live_price || {};
+    const selected = item.symbol || null;
+
+    setSelectedStock(selected);
+    setPredictionIndicatorError(null);
+    setRightPanelData({
+      symbol: selected || '--',
+      companyName: item.name || selected || '--',
+      livePrice: toNumber(live.price),
+      dayChangePercent: toNumber(live.change_percent),
+      volume: toNumber(live.volume),
+      predictionIndicator: null,
+    });
+
+    if (!selected) return;
+
+    setPredictionIndicatorLoading(true);
+    try {
+      const indicator = await getPredictionIndicator(selected, 5, false);
+      setRightPanelData((prev) => {
+        if (!prev || prev.symbol !== selected) return prev;
+        return {
+          ...prev,
+          predictionIndicator: indicator?.success ? indicator : null,
+        };
+      });
+      if (!indicator?.success) {
+        setPredictionIndicatorError('Prediction indicator unavailable for this stock.');
+      }
+    } catch (err) {
+      console.error('Prediction indicator error:', err);
+      setPredictionIndicatorError(err?.response?.data?.error || 'Failed to load prediction indicator.');
+    } finally {
+      setPredictionIndicatorLoading(false);
+    }
   };
 
   const getSuggestedPortfolioStocks = () => {
@@ -541,37 +604,122 @@ const Dashboard = () => {
                 </div>
               </div>
             )}
-            {portfolioData.allocations.map((item) => {
-              const priceValue = toNumber(item?.live_price?.price);
-              const investedValue = toNumber(item?.invested_amount);
-              const allocationValue = toNumber(item?.allocation_amount);
-              const unallocatedValue = toNumber(item?.unallocated_amount);
-              return (
-                <div key={item.symbol} className={`portfolio-row ${item.error ? 'error' : ''}`}>
-                  <div className="portfolio-cell symbol">{item.symbol}</div>
-                  {item.error ? (
-                    <div className="portfolio-cell error-text">{item.error}</div>
-                  ) : (
-                    <>
-                      <div className="portfolio-cell action">
-                        {item.recommendation?.recommendation || 'N/A'}
+
+            <div className="portfolio-two-panel">
+              <div className="portfolio-middle-panel">
+                {portfolioData.allocations.map((item) => (
+                  <div
+                    key={item.symbol}
+                    className={`portfolio-select-row ${item.error ? 'error' : ''} ${selectedStock === item.symbol ? 'active' : ''}`}
+                  >
+                    <div className="portfolio-select-main">
+                      <div className="portfolio-select-symbol">{item.symbol}</div>
+                      <div className="portfolio-select-reco">
+                        {item.error ? item.error : item.recommendation?.recommendation || 'N/A'}
                       </div>
-                      <div className="portfolio-cell">Price: Rs {formatMoney(priceValue)}</div>
-                      <div className="portfolio-cell">Shares: {item.shares}</div>
-                      <div className="portfolio-cell">Allocated: Rs {formatMoney(allocationValue)}</div>
-                      <div className="portfolio-cell">Invested: Rs {formatMoney(investedValue)}</div>
-                      <div className="portfolio-cell">Unallocated: Rs {formatMoney(unallocatedValue)}</div>
-                      <div className="portfolio-cell portfolio-actions">
-                        <button type="button" className="mini-view-btn" onClick={() => openPortfolioStockView(item.symbol, 'overview')}>Details</button>
-                        <button type="button" className="mini-view-btn" onClick={() => openPortfolioStockView(item.symbol, 'charts')}>Graph</button>
-                        <button type="button" className="mini-view-btn" onClick={() => openPortfolioStockView(item.symbol, 'charts')}>Graph Rep</button>
-                        <button type="button" className="mini-view-btn" onClick={() => openPortfolioStockView(item.symbol, 'prediction')}>Prediction</button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
+                    </div>
+                    <button
+                      type="button"
+                      className="portfolio-arrow-btn"
+                      onClick={() => handlePortfolioDetailOpen(item)}
+                      disabled={!!item.error}
+                      title="Open details"
+                    >
+                      <span aria-hidden="true">&#9654;</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="portfolio-right-panel">
+                {rightPanelData ? (
+                  <div className="portfolio-detail-card">
+                    <div className="portfolio-detail-title">{rightPanelData.symbol}</div>
+                    <div className="portfolio-detail-item">
+                      <span>Company Name</span>
+                      <strong>{rightPanelData.companyName}</strong>
+                    </div>
+                    <div className="portfolio-detail-item">
+                      <span>Live Price</span>
+                      <strong>Rs {formatMoney(rightPanelData.livePrice)}</strong>
+                    </div>
+                    <div className="portfolio-detail-item">
+                      <span>Day Change (%)</span>
+                      <strong>
+                        {rightPanelData.dayChangePercent !== null
+                          ? `${rightPanelData.dayChangePercent.toFixed(2)}%`
+                          : '--'}
+                      </strong>
+                    </div>
+                    <div className="portfolio-detail-item">
+                      <span>Volume</span>
+                      <strong>{formatNumber(rightPanelData.volume)}</strong>
+                    </div>
+
+                    <div className="portfolio-prediction-block">
+                      <div className="portfolio-prediction-title">AI Future Price Prediction Indicator</div>
+
+                      {predictionIndicatorLoading && (
+                        <div className="portfolio-prediction-loading">Calculating future trend...</div>
+                      )}
+
+                      {!predictionIndicatorLoading && predictionIndicatorError && (
+                        <div className="portfolio-prediction-error">{predictionIndicatorError}</div>
+                      )}
+
+                      {!predictionIndicatorLoading && !predictionIndicatorError && rightPanelData.predictionIndicator && (
+                        <>
+                          <div className="portfolio-detail-item">
+                            <span>Future Price Prediction (Next {rightPanelData.predictionIndicator.days} Days)</span>
+                            <div className="portfolio-prediction-list">
+                              {rightPanelData.predictionIndicator.future_predictions.map((point) => (
+                                <div key={`pred-day-${point.day}`} className="portfolio-prediction-row">
+                                  <span>Day {point.day}</span>
+                                  <strong>Rs {formatMoney(toNumber(point.predicted_price))}</strong>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="portfolio-detail-item">
+                            <span>Trend</span>
+                            <strong>
+                              {rightPanelData.predictionIndicator.trend === 'INCREASE'
+                                ? 'Increase ??'
+                                : rightPanelData.predictionIndicator.trend === 'DECREASE'
+                                  ? 'Decrease ??'
+                                  : 'Stable'}
+                            </strong>
+                          </div>
+
+                          <div className="portfolio-detail-item">
+                            <span>Percentage Change</span>
+                            <strong>{rightPanelData.predictionIndicator.percentage_change.toFixed(2)}%</strong>
+                          </div>
+
+                          <div className="portfolio-detail-item">
+                            <span>Confidence Score</span>
+                            <strong>{rightPanelData.predictionIndicator.confidence_score.toFixed(2)}%</strong>
+                          </div>
+
+                          <div className="portfolio-detail-item">
+                            <span>Final AI Signal</span>
+                            <strong className={`signal-${(rightPanelData.predictionIndicator.ai_signal || 'HOLD').toLowerCase()}`}>
+                              {rightPanelData.predictionIndicator.ai_signal || 'HOLD'}
+                            </strong>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="portfolio-detail-empty">
+                    Click ? on any stock in the middle panel to view details here.
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="portfolio-summary">
               Total invested: Rs {formatMoney(toNumber(portfolioData.total_invested))} | Remaining cash: Rs{' '}
               {formatMoney(toNumber(portfolioData.remaining_cash))}
@@ -583,8 +731,8 @@ const Dashboard = () => {
   );
 
   const priceChangeClass = liveChange !== null && liveChange < 0 ? 'negative' : 'positive';
-  const changeDisplay = liveChange !== null ? liveChange.toFixed(2) : '—';
-  const changePercentDisplay = liveChangePercent !== null ? liveChangePercent.toFixed(2) : '—';
+  const changeDisplay = liveChange !== null ? liveChange.toFixed(2) : '--';
+  const changePercentDisplay = liveChangePercent !== null ? liveChangePercent.toFixed(2) : '--';
 
   return (
     <div className="dashboard">
@@ -733,12 +881,6 @@ const Dashboard = () => {
                 >
                   Prediction
                 </button>
-                <button
-                  className={activeTab === 'chat' ? 'active' : ''}
-                  onClick={() => setActiveTab('chat')}
-                >
-                  Ask AI
-                </button>
               </div>
 
               <div className="tab-content">
@@ -837,20 +979,40 @@ const Dashboard = () => {
                     </div>
                   </div>
                 )}
-
-                {activeTab === 'chat' && (
-                  <ChatBot symbol={selectedSymbol} stockName={liveData?.name} />
-                )}
               </div>
             </>
           )}
         </div>
       </div>
+
+      <ChatBot
+        symbol={selectedSymbol}
+        stockName={liveData?.name || selectedSymbol}
+        recommendation={recommendation}
+        prediction={Array.isArray(prediction) && prediction.length ? prediction[0] : null}
+      />
     </div>
   );
 };
 
 export default Dashboard;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

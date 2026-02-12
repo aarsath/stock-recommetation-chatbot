@@ -192,6 +192,155 @@ def predict_stock(symbol):
         return jsonify({'error': str(e)}), 500
 
 
+
+@app.route('/api/predict-indicator/<symbol>', methods=['GET'])
+def predict_indicator(symbol):
+    """Return compact AI future price prediction indicator for right-side panel"""
+    try:
+        formatted_symbol = StockSymbols.format_symbol(symbol)
+        days = request.args.get('days', 5, type=int)
+        days = max(3, min(days, 5))
+        retrain = request.args.get('retrain', 'false').lower() == 'true'
+
+        def _heuristic_projection(live_data, engine='heuristic_fallback'):
+            current_price = float((live_data or {}).get('price', 0) or 0)
+            change_pct = float((live_data or {}).get('change_percent', 0) or 0)
+
+            projected_daily_return = max(-0.03, min(0.03, (change_pct / 100.0) * 0.35))
+
+            timeline = []
+            running_price = current_price
+            for day in range(1, days + 1):
+                running_price = running_price * (1 + projected_daily_return)
+                timeline.append({
+                    'day': day,
+                    'predicted_price': round(float(running_price), 2)
+                })
+
+            predicted_last = timeline[-1]['predicted_price'] if timeline else current_price
+            delta = predicted_last - current_price
+            pct_change = (delta / current_price * 100) if current_price else 0.0
+
+            if abs(delta) < 0.01:
+                trend = 'HOLD'
+                trend_label = 'Stable'
+            elif delta > 0:
+                trend = 'INCREASE'
+                trend_label = 'Increase'
+            else:
+                trend = 'DECREASE'
+                trend_label = 'Decrease'
+
+            if delta > 0.01:
+                ai_signal = 'BUY'
+            elif delta < -0.01:
+                ai_signal = 'SELL'
+            else:
+                ai_signal = 'HOLD'
+
+            return {
+                'success': True,
+                'symbol': formatted_symbol,
+                'days': days,
+                'current_price': round(current_price, 2),
+                'future_predictions': timeline,
+                'trend': trend,
+                'trend_label': trend_label,
+                'percentage_change': round(pct_change, 2),
+                'confidence_score': 35.0,
+                'ai_signal': ai_signal,
+                'engine': engine
+            }
+
+        fetcher = StockDataFetcher(formatted_symbol)
+        complete_data = fetcher.get_complete_data()
+
+        # Primary path: ML prediction. Any model/data numeric failures auto-fallback.
+        if complete_data:
+            try:
+                df = complete_data['historical']
+                live_data = complete_data.get('live') or {}
+
+                predictor = StockPredictor()
+                model_loaded = predictor.load_model(formatted_symbol) if not retrain else False
+
+                if not model_loaded:
+                    train_result = predictor.train(df)
+                    if not train_result['success']:
+                        return jsonify({'error': train_result.get('error', 'Model training failed')}), 400
+                    predictor.save_model(formatted_symbol)
+
+                predictions = predictor.predict(df, days) or []
+                next_day = predictor.predict_next_day(df) or {}
+
+                if predictions:
+                    current_price = live_data.get('price')
+                    if current_price is None:
+                        current_price = float(df['Close'].iloc[-1]) if df is not None and not df.empty else 0
+
+                    current_price = float(current_price or 0)
+                    predicted_last = float(predictions[-1].get('predicted_price', current_price) or current_price)
+                    delta = predicted_last - current_price
+                    pct_change = (delta / current_price * 100) if current_price else 0.0
+
+                    if abs(delta) < 0.01:
+                        trend = 'HOLD'
+                        trend_label = 'Stable'
+                    elif delta > 0:
+                        trend = 'INCREASE'
+                        trend_label = 'Increase'
+                    else:
+                        trend = 'DECREASE'
+                        trend_label = 'Decrease'
+
+                    if delta > 0.01:
+                        ai_signal = 'BUY'
+                    elif delta < -0.01:
+                        ai_signal = 'SELL'
+                    else:
+                        ai_signal = 'HOLD'
+
+                    confidence_score = float(next_day.get('confidence', 0.0) or 0.0) * 100
+                    confidence_score = max(0.0, min(100.0, confidence_score))
+
+                    timeline = []
+                    for point in predictions:
+                        timeline.append({
+                            'day': int(point.get('day', 0) or 0),
+                            'predicted_price': round(float(point.get('predicted_price', 0) or 0), 2)
+                        })
+
+                    return jsonify({
+                        'success': True,
+                        'symbol': formatted_symbol,
+                        'days': days,
+                        'current_price': round(current_price, 2),
+                        'future_predictions': timeline,
+                        'trend': trend,
+                        'trend_label': trend_label,
+                        'percentage_change': round(pct_change, 2),
+                        'confidence_score': round(confidence_score, 2),
+                        'ai_signal': ai_signal,
+                        'engine': 'ml'
+                    })
+            except Exception as ml_err:
+                print(f"Predict indicator ML fallback for {formatted_symbol}: {str(ml_err)}")
+
+            # If ML failed but live data exists, still return heuristic projection.
+            live_data = complete_data.get('live') or fetch_live_price(formatted_symbol)
+            if live_data:
+                return jsonify(_heuristic_projection(live_data, engine='ml_fallback'))
+
+        # Last fallback path: direct live fetch when complete_data unavailable
+        live_data = fetch_live_price(formatted_symbol)
+        if not live_data:
+            return jsonify({'error': f'Failed to fetch stock data for {formatted_symbol}'}), 404
+
+        return jsonify(_heuristic_projection(live_data, engine='heuristic_fallback'))
+
+    except Exception as e:
+        print(f"Predict indicator error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 @app.route('/api/recommend/<symbol>', methods=['GET'])
 def recommend_stock(symbol):
     """Get Buy/Sell/Hold recommendation"""
@@ -473,65 +622,62 @@ def generate_stock_charts(symbol):
 
 
 @app.route('/api/chat', methods=['POST'])
+@app.route('/api/chatbot', methods=['POST'])
 def chat():
-    """AI Chatbot endpoint"""
+    """AI multilingual chatbot endpoint"""
     try:
-        data = request.get_json()
-        
+        data = request.get_json() or {}
+
         user_query = data.get('query', '')
         symbol = data.get('symbol', '')
         language = data.get('language')
-        
+
         if not user_query:
             return jsonify({'error': 'Query required'}), 400
-        
-        if not symbol:
-            no_symbol_messages = {
-                'hi': 'Kripya pehle ek stock symbol select kijiye, tab main specific analysis de sakta hoon.',
-                'ta': 'Mudhalil oru stock symbol select seyyungal; appothaan specific analysis kodukka mudiyum.',
-            }
-            return jsonify({
-                'response': no_symbol_messages.get(
-                    language,
-                    'Please select a stock symbol first to get specific analysis.'
-                ),
-                'language': language or 'en'
-            })
-        # Format symbol
-        formatted_symbol = StockSymbols.format_symbol(symbol)
-        
-        # Fetch data
-        fetcher = StockDataFetcher(formatted_symbol)
-        complete_data = fetcher.get_complete_data()
-        
-        if not complete_data:
-            return jsonify({'error': 'Failed to fetch stock data'}), 404
-        
-        # Get recommendation
-        df = complete_data['historical']
-        live_data = complete_data['live']
-        
-        predictor = StockPredictor()
-        predictor.load_model(formatted_symbol)
-        prediction_data = predictor.predict_next_day(df) if predictor.is_trained else None
-        
-        recommendation = get_recommendation(df, prediction_data, live_data)
-        
-        # Generate response
-        chat_payload = chat_response(user_query, complete_data, recommendation, language)
-        
+
+        # General finance chat is allowed without a selected symbol.
+        complete_data = {'live': {}}
+        recommendation = {'recommendation': 'HOLD', 'score': 50, 'summary': 'No stock selected yet.'}
+        prediction_data = None
+        formatted_symbol = None
+
+        if symbol:
+            formatted_symbol = StockSymbols.format_symbol(symbol)
+
+            fetcher = StockDataFetcher(formatted_symbol)
+            fetched = fetcher.get_complete_data()
+            if fetched:
+                complete_data = fetched
+
+                df = complete_data['historical']
+                live_data = complete_data['live']
+
+                predictor = StockPredictor()
+                predictor.load_model(formatted_symbol)
+                prediction_data = predictor.predict_next_day(df) if predictor.is_trained else None
+
+                recommendation = get_recommendation(df, prediction_data, live_data)
+
+        chat_payload = chat_response(
+            user_query,
+            complete_data,
+            recommendation,
+            prediction_data=prediction_data,
+            preferred_language=language,
+        )
+
         return jsonify({
             'success': True,
             'query': user_query,
             'response': chat_payload.get('response', ''),
             'language': chat_payload.get('language', language or 'en'),
-            'symbol': formatted_symbol
+            'intent': chat_payload.get('detected_intent', 'default'),
+            'symbol': formatted_symbol,
         })
-    
+
     except Exception as e:
         print(f"Chat error: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/load-llm', methods=['POST'])
 def load_llm_model():
@@ -593,6 +739,10 @@ if __name__ == '__main__':
     # llm_analyzer.load_model()
     
     app.run(debug=Config.DEBUG, host='0.0.0.0', port=5000)
+
+
+
+
 
 
 
