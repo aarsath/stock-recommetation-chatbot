@@ -1,6 +1,16 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { generateCharts } from '../services/api';
 import './Charts.css';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+
+const resolveChartUrl = (url) => {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith('/')) return `${BACKEND_ORIGIN}${url}`;
+  return `${BACKEND_ORIGIN}/${url}`;
+};
 
 const chartTitleMap = {
   comprehensive: 'Comprehensive Technical Chart',
@@ -68,7 +78,7 @@ const Charts = ({ symbol }) => {
       {chartEntries.map(([key, url]) => (
         <div className="matplotlib-chart-box" key={key}>
           <div className="matplotlib-chart-title">{toTitle(key)}</div>
-          <img src={url} alt={toTitle(key)} className="matplotlib-chart-image" loading="lazy" />
+          <img src={resolveChartUrl(url)} alt={toTitle(key)} className="matplotlib-chart-image" loading="lazy" />
         </div>
       ))}
     </div>

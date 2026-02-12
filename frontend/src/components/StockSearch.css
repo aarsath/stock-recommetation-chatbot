@@ -1,7 +1,7 @@
 .stock-search {
-  --panel-bg: linear-gradient(180deg, #0f121d 0%, #0b0f18 100%);
-  --panel-border: #1f2a3c;
-  --soft-border: #2a3750;
+  --panel-bg: var(--surface-1);
+  --panel-border: var(--surface-border);
+  --soft-border: var(--surface-border);
   --text-main: #e8eeff;
   --text-muted: #9fb0cf;
   --accent: #6e9dff;
@@ -261,5 +261,39 @@
 
   .stock-search .cancel-btn {
     align-self: flex-end;
+  }
+}
+
+
+@media (prefers-color-scheme: light) {
+  .stock-search {
+    --text-main: #1e2d45;
+    --text-muted: #5d7192;
+    --accent: #2f69cf;
+    --accent-2: #4a7edf;
+    --chip-bg: #eef3fc;
+    box-shadow: 0 10px 24px rgba(34, 63, 104, 0.12);
+  }
+
+  .stock-search .search-results,
+  .stock-search .search-result-item,
+  .stock-search .search-empty {
+    background: #f7faff;
+  }
+
+  .stock-search .results-header {
+    background: #edf3fd;
+    color: #213451;
+    border-bottom-color: #d6e0ef;
+  }
+
+  .stock-search .result-symbol {
+    color: #213451;
+  }
+
+  .stock-search .result-exchange {
+    background: #eef3fc;
+    border-color: #cdd9ea;
+    color: #4f6690;
   }
 }

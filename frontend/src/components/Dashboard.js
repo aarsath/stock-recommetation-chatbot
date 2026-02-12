@@ -15,6 +15,12 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import HorizontalRuleIcon from '@mui/icons-material/HorizontalRule';
+import ThumbUpAltOutlinedIcon from '@mui/icons-material/ThumbUpAltOutlined';
+import ThumbDownAltOutlinedIcon from '@mui/icons-material/ThumbDownAltOutlined';
+import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -61,6 +67,9 @@ const Dashboard = () => {
 
     setLoading(true);
     setError(null);
+    setAiAnalysis(null);
+    setRecommendation(null);
+    setPrediction([]);
 
     try {
       const [liveRes, recommendationRes] = await Promise.allSettled([
@@ -120,11 +129,19 @@ const Dashboard = () => {
       }
 
       if (analysisRes.status === 'fulfilled') {
-        setAiAnalysis(analysisRes.value.ai_analysis);
+        const analysisText = analysisRes.value?.ai_analysis;
+        if (typeof analysisText === 'string' && analysisText.trim()) {
+          setAiAnalysis(analysisText);
+        } else {
+          setAiAnalysis('AI analysis is currently unavailable for this stock. Please try Refresh.');
+        }
+      } else {
+        setAiAnalysis('AI analysis request failed. Please try Refresh.');
       }
     }).catch((err) => {
       if (requestId !== loadRequestRef.current) return;
       console.error('Background load error:', err);
+      setAiAnalysis('AI analysis request failed. Please try Refresh.');
     });
   };
 
@@ -139,6 +156,19 @@ const Dashboard = () => {
     if (rec.includes('STRONG BUY') || rec.includes('BUY')) return 'rec-buy';
     if (rec.includes('SELL')) return 'rec-sell';
     return 'rec-hold';
+  };
+
+  const getRecommendationIcon = (rec) => {
+    const normalized = (rec || '').toUpperCase();
+    if (normalized.includes('BUY')) return <ThumbUpAltOutlinedIcon fontSize="small" />;
+    if (normalized.includes('SELL')) return <ThumbDownAltOutlinedIcon fontSize="small" />;
+    return <PanToolOutlinedIcon fontSize="small" />;
+  };
+
+  const getTrendIcon = (direction) => {
+    if (direction === 'Up') return <ArrowUpwardIcon className="trend-icon up" fontSize="small" />;
+    if (direction === 'Down') return <ArrowDownwardIcon className="trend-icon down" fontSize="small" />;
+    return <HorizontalRuleIcon className="trend-icon flat" fontSize="small" />;
   };
 
   const toNumber = (value) => {
@@ -827,11 +857,11 @@ const Dashboard = () => {
                   <div className="stat-value">{formatNumber(liveVolume)}</div>
                 </div>
                 <div className="stat-item">
-                  <div className="stat-label">52W High</div>
+                  <div className="stat-label">52 Week High</div>
                   <div className="stat-value">Rs {formatMoney(weekHigh)}</div>
                 </div>
                 <div className="stat-item">
-                  <div className="stat-label">52W Low</div>
+                  <div className="stat-label">52 Week Low</div>
                   <div className="stat-value">Rs {formatMoney(weekLow)}</div>
                 </div>
               </div>
@@ -840,7 +870,7 @@ const Dashboard = () => {
                 <div className={`recommendation-card ${getRecommendationClass(recommendation.recommendation)}`}>
                   <div className="rec-header">
                     <h3>AI Recommendation</h3>
-                    <div className="rec-badge">{recommendation.recommendation}</div>
+                    <div className="rec-badge">{getRecommendationIcon(recommendation.recommendation)}<span>{recommendation.recommendation}</span></div>
                   </div>
                   <div className="rec-details">
                     <div className="rec-score">
@@ -889,47 +919,47 @@ const Dashboard = () => {
                     {recommendation && (
                       <div className="signals-grid">
                         <div className="signal-card">
-                          <h4>Technical Signals</h4>
+                          <h4>Technical Signals <span className="term-help" title="Uses indicators like RSI and MACD from historical price/volume data.">?</span></h4>
                           <ul>
-                            {recommendation.signals.technical.signals.map((signal, i) => (
+                            {(recommendation?.signals?.technical?.signals || []).map((signal, i) => (
                               <li key={i}>{signal}</li>
                             ))}
                           </ul>
                           <div className="signal-score">
-                            Score: {recommendation.signals.technical.score}/100
+                            Score: {(recommendation?.signals?.technical?.score ?? 50)}/100
                           </div>
                         </div>
                         <div className="signal-card">
-                          <h4>Prediction Signals</h4>
+                          <h4>Prediction Signals <span className="term-help" title="AI model estimate of possible short-term movement.">?</span></h4>
                           <ul>
-                            {recommendation.signals.prediction.signals.map((signal, i) => (
+                            {(recommendation?.signals?.prediction?.signals || []).map((signal, i) => (
                               <li key={i}>{signal}</li>
                             ))}
                           </ul>
                           <div className="signal-score">
-                            Score: {recommendation.signals.prediction.score}/100
+                            Score: {(recommendation?.signals?.prediction?.score ?? 50)}/100
                           </div>
                         </div>
                         <div className="signal-card">
-                          <h4>Trend Analysis</h4>
+                          <h4>{getTrendIcon(recommendation?.signals?.trend?.trend?.direction)} Trend Analysis <span className="term-help" title="Direction and strength from recent price movement.">?</span></h4>
                           <ul>
-                            {recommendation.signals.trend.signals.map((signal, i) => (
+                            {(recommendation?.signals?.trend?.signals || []).map((signal, i) => (
                               <li key={i}>{signal}</li>
                             ))}
                           </ul>
                           <div className="signal-score">
-                            Score: {recommendation.signals.trend.score}/100
+                            Score: {(recommendation?.signals?.trend?.score ?? 50)}/100
                           </div>
                         </div>
                         <div className="signal-card">
-                          <h4>Volume Analysis</h4>
+                          <h4>Volume Analysis <span className="term-help" title="Compares current traded volume vs average volume.">?</span></h4>
                           <ul>
-                            {recommendation.signals.volume.signals.map((signal, i) => (
+                            {(recommendation?.signals?.volume?.signals || []).map((signal, i) => (
                               <li key={i}>{signal}</li>
                             ))}
                           </ul>
                           <div className="signal-score">
-                            Score: {recommendation.signals.volume.score}/100
+                            Score: {(recommendation?.signals?.volume?.score ?? 50)}/100
                           </div>
                         </div>
                       </div>
@@ -949,7 +979,7 @@ const Dashboard = () => {
                           <pre>{aiAnalysis}</pre>
                         </div>
                       ) : (
-                        <p>Generating AI analysis...</p>
+                        <div className="inline-loader"><span className="dot"></span><span className="dot"></span><span className="dot"></span><span>Generating AI analysis...</span></div>
                       )}
                     </div>
                   </div>
@@ -983,6 +1013,30 @@ const Dashboard = () => {
             </>
           )}
         </div>
+
+        <aside className="right-rail" aria-label="Quick market snapshot">
+          {selectedSymbol ? (
+            <>
+              <div className="rail-card">
+                <h4>Quick View</h4>
+                <div className="rail-row"><span>Symbol</span><strong>{selectedSymbol}</strong></div>
+                <div className="rail-row"><span>Price</span><strong>Rs {formatMoney(livePriceValue)}</strong></div>
+                <div className="rail-row"><span>Day Move</span><strong className={priceChangeClass}>{changePercentDisplay}%</strong></div>
+                <div className="rail-row"><span>Volume</span><strong>{formatNumber(liveVolume)}</strong></div>
+              </div>
+              <div className="rail-card">
+                <h4>AI Signal</h4>
+                <div className="rail-pill rail-pill-action">{recommendation?.recommendation || 'HOLD'}</div>
+                <p>{recommendation?.summary || 'Signal summary will appear after analysis.'}</p>
+              </div>
+            </>
+          ) : (
+            <div className="rail-card">
+              <h4>Quick View</h4>
+              <p>Select a stock to see live snapshot and AI signal.</p>
+            </div>
+          )}
+        </aside>
       </div>
 
       <ChatBot
@@ -996,6 +1050,8 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+
 
 
 

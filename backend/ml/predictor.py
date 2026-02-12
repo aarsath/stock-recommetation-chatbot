@@ -111,40 +111,49 @@ class StockPredictor:
     def train(self, df):
         """Train the ML model"""
         X, y = self.prepare_features(df)
-        
+        X, y = self._sanitize_feature_frame(X, y)
+
         if X is None or y is None:
             return {
                 'success': False,
                 'error': 'Insufficient data for training'
             }
         
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, 
-            test_size=1-Config.TRAIN_TEST_SPLIT, 
-            random_state=Config.RANDOM_STATE,
-            shuffle=False  # Don't shuffle time series data
-        )
-        
-        # Scale features
-        X_train_scaled = self.scaler.fit_transform(X_train)
-        X_test_scaled = self.scaler.transform(X_test)
-        
-        # Train RandomForest model
-        self.model = RandomForestRegressor(
-            n_estimators=100,
-            max_depth=20,
-            min_samples_split=5,
-            min_samples_leaf=2,
-            random_state=Config.RANDOM_STATE,
-            n_jobs=-1
-        )
-        
-        self.model.fit(X_train_scaled, y_train)
-        
-        # Evaluate
-        y_pred_train = self.model.predict(X_train_scaled)
-        y_pred_test = self.model.predict(X_test_scaled)
+        try:
+            # Split data
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y,
+                test_size=1-Config.TRAIN_TEST_SPLIT,
+                random_state=Config.RANDOM_STATE,
+                shuffle=False  # Don't shuffle time series data
+            )
+
+            # Scale features
+            X_train_scaled = self.scaler.fit_transform(X_train)
+            X_test_scaled = self.scaler.transform(X_test)
+
+            # Train RandomForest model
+            self.model = RandomForestRegressor(
+                n_estimators=100,
+                max_depth=20,
+                min_samples_split=5,
+                min_samples_leaf=2,
+                random_state=Config.RANDOM_STATE,
+                n_jobs=-1
+            )
+
+            self.model.fit(X_train_scaled, y_train)
+
+            # Evaluate
+            y_pred_train = self.model.predict(X_train_scaled)
+            y_pred_test = self.model.predict(X_test_scaled)
+        except Exception as e:
+            self.model = None
+            self.is_trained = False
+            return {
+                'success': False,
+                'error': f'Model training failed: {str(e)}'
+            }
         
         train_mae = mean_absolute_error(y_train, y_pred_train)
         test_mae = mean_absolute_error(y_test, y_pred_test)
@@ -174,7 +183,8 @@ class StockPredictor:
             return None
         
         X, _ = self.prepare_features(df)
-        
+        X = self._sanitize_feature_frame(X)
+
         if X is None:
             return None
         
@@ -186,6 +196,9 @@ class StockPredictor:
         
         for day in range(days):
             # Scale and predict
+            current_data = self._sanitize_feature_frame(current_data)
+            if current_data is None:
+                break
             current_scaled = self.scaler.transform(current_data)
             predicted_price = self.model.predict(current_scaled)[0]
             
@@ -217,7 +230,8 @@ class StockPredictor:
             return None
         
         X, _ = self.prepare_features(df)
-        
+        X = self._sanitize_feature_frame(X)
+
         if X is None:
             return None
         
@@ -305,4 +319,6 @@ class StockPredictor:
         self.is_trained = True
         
         return True
+
+
 

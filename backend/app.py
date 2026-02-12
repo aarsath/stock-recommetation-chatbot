@@ -34,6 +34,34 @@ llm_analyzer = LLMAnalyzer()
 analysis_cache = {}
 
 
+def _get_prediction_data(formatted_symbol, df, retrain=False):
+    """Load model and return next-day prediction; trains model when needed."""
+    try:
+        predictor = StockPredictor()
+        model_loaded = predictor.load_model(formatted_symbol) if not retrain else False
+
+        if not model_loaded:
+            train_result = predictor.train(df)
+            if not train_result or not train_result.get('success'):
+                return None
+            predictor.save_model(formatted_symbol)
+
+        try:
+            prediction_data = predictor.predict_next_day(df) if predictor.is_trained else None
+        except Exception:
+            # Retry once with a fresh train in case an old saved model became incompatible.
+            retrain_result = predictor.train(df)
+            if not retrain_result or not retrain_result.get('success'):
+                return None
+            predictor.save_model(formatted_symbol)
+            prediction_data = predictor.predict_next_day(df) if predictor.is_trained else None
+
+        return prediction_data
+    except Exception as pred_err:
+        print(f"Prediction helper failed for {formatted_symbol}: {str(pred_err)}")
+        return None
+
+
 @app.route('/')
 def home():
     """API Home"""
@@ -352,8 +380,16 @@ def recommend_stock(symbol):
         cache_key = f"{formatted_symbol}_recommend"
         if cache_key in analysis_cache:
             cached = analysis_cache[cache_key]
-            # Check if cache is less than 5 minutes old
-            if (datetime.now() - cached['timestamp']).seconds < 300:
+            recommendation_cached = (cached.get('data') or {}).get('recommendation') or {}
+            prediction_cached = (recommendation_cached.get('signals') or {}).get('prediction') or {}
+            prediction_signals = prediction_cached.get('signals') or []
+            has_prediction_unavailable = any(
+                isinstance(signal, str) and 'unavailable' in signal.lower()
+                for signal in prediction_signals
+            )
+
+            # Check if cache is less than 5 minutes old and does not carry stale fallback predictions.
+            if (datetime.now() - cached['timestamp']).seconds < 300 and not has_prediction_unavailable:
                 return jsonify(cached['data'])
         
         # Fetch complete data
@@ -366,14 +402,8 @@ def recommend_stock(symbol):
         df = complete_data['historical']
         live_data = complete_data['live']
         
-        # Get prediction
-        predictor = StockPredictor()
-        predictor.load_model(formatted_symbol)
-        
-        if predictor.is_trained:
-            prediction_data = predictor.predict_next_day(df)
-        else:
-            prediction_data = None
+        # Get prediction (auto-train if missing model)
+        prediction_data = _get_prediction_data(formatted_symbol, df)
         
         # Get recommendation
         recommendation = get_recommendation(df, prediction_data, live_data)
@@ -450,9 +480,7 @@ def portfolio_recommendations():
                 df = complete_data['historical']
                 live_data = complete_data['live']
 
-                predictor = StockPredictor()
-                predictor.load_model(formatted_symbol)
-                prediction_data = predictor.predict_next_day(df) if predictor.is_trained else None
+                prediction_data = _get_prediction_data(formatted_symbol, df)
 
                 recommendation = get_recommendation(df, prediction_data, live_data)
                 score = recommendation.get('score', 0) if recommendation else 0
@@ -538,22 +566,28 @@ def analyze_stock_endpoint(symbol):
         df = complete_data['historical']
         live_data = complete_data['live']
         
-        # Get prediction
-        predictor = StockPredictor()
-        model_loaded = predictor.load_model(formatted_symbol)
-        
-        if not model_loaded:
-            # Train model
-            predictor.train(df)
-            predictor.save_model(formatted_symbol)
-        
-        prediction_data = predictor.predict_next_day(df)
-        
-        # Get recommendation
+        # Get prediction (safe path)
+        prediction_data = _get_prediction_data(formatted_symbol, df)
+
+        # Get recommendation (safe fallback)
         recommendation = get_recommendation(df, prediction_data, live_data)
-        
+        if not recommendation:
+            recommendation = {
+                'recommendation': 'HOLD',
+                'action': 'HOLD',
+                'confidence': 'Low',
+                'score': 50,
+                'signals': {
+                    'technical': {'score': 50, 'signals': []},
+                    'prediction': {'score': 50, 'signals': []},
+                    'trend': {'score': 50, 'signals': []},
+                    'volume': {'score': 50, 'signals': []},
+                },
+                'summary': 'Limited data available for full recommendation.'
+            }
+
         # Generate LLM analysis
-        technical_signals = recommendation['signals']['technical']
+        technical_signals = recommendation.get('signals', {}).get('technical', {})
         llm_analysis = analyze_stock(complete_data, recommendation, technical_signals)
         
         return jsonify({
@@ -588,28 +622,30 @@ def generate_stock_charts(symbol):
         df = complete_data['historical']
         live_data = complete_data['live']
         
-        # Get prediction
-        predictor = StockPredictor()
-        predictor.load_model(formatted_symbol)
-        
+        # Get prediction (optional for charts; do not block chart rendering on ML training).
         predictions = None
-        if predictor.is_trained:
-            predictions = predictor.predict(df, 30)
-        
+        prediction_data = None
+        try:
+            predictor = StockPredictor()
+            if predictor.load_model(formatted_symbol):
+                prediction_data = predictor.predict_next_day(df) if predictor.is_trained else None
+                predictions = predictor.predict(df, 30) if predictor.is_trained else None
+        except Exception as pred_err:
+            print(f"Charts prediction optional step failed for {formatted_symbol}: {str(pred_err)}")
+
         # Get recommendation
-        prediction_data = predictor.predict_next_day(df) if predictor.is_trained else None
         recommendation = get_recommendation(df, prediction_data, live_data)
-        
+
         # Generate charts
         charts = generate_charts(formatted_symbol, df, predictions, recommendation)
-        
-        # Convert file paths to relative URLs
+
+        # Convert file paths to absolute URLs so frontend on a different port can load them.
+        base_static_url = request.host_url.rstrip('/')
         chart_urls = {}
         for chart_type, filepath in charts.items():
             if filepath:
                 filename = os.path.basename(filepath)
-                chart_urls[chart_type] = f"/static/charts/{filename}"
-        
+                chart_urls[chart_type] = f"{base_static_url}/static/charts/{filename}"
         return jsonify({
             'success': True,
             'symbol': formatted_symbol,
@@ -652,9 +688,7 @@ def chat():
                 df = complete_data['historical']
                 live_data = complete_data['live']
 
-                predictor = StockPredictor()
-                predictor.load_model(formatted_symbol)
-                prediction_data = predictor.predict_next_day(df) if predictor.is_trained else None
+                prediction_data = _get_prediction_data(formatted_symbol, df)
 
                 recommendation = get_recommendation(df, prediction_data, live_data)
 
@@ -739,10 +773,6 @@ if __name__ == '__main__':
     # llm_analyzer.load_model()
     
     app.run(debug=Config.DEBUG, host='0.0.0.0', port=5000)
-
-
-
-
 
 
 
